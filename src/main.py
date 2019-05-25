@@ -2,49 +2,14 @@ import math
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.io import loadmat
-from scipy.spatial.distance import cdist
+
+from nn import NN
 
 data = loadmat('../ORL_32x32.mat')
 train = loadmat('../train_data/7.mat')
 
 people_index = data['gnd']
 faces_db = data['fea'] / 255
-
-
-class NN:
-    def __init__(self):
-        self.mean_face, self.eigenfaces, self.face_space_coord_train = None, None, None
-
-    def train(self, train_faces, train_labels, k_componenents):
-        self.train_labels = train_labels
-        self.mean_face = np.mean(train_faces, axis=0)
-        covariance_matrix = np.cov(train_faces.T)
-
-        # eigenfaces = k principal components (eigenvectors of the covariance matrix)
-        _, eigenvalues, eigenvectors = np.linalg.svd(covariance_matrix, full_matrices=False)
-        self.eigenfaces = eigenvectors[:k_componenents]
-
-        self.face_space_coord_train = project_onto_eigenface_subspace(self.eigenfaces, train_faces, self.mean_face)
-
-        # for eigenface in self.eigenfaces:
-        #     plt.imshow((eigenface.reshape(32, 32) + np.min(eigenface)) / np.max(eigenface), cmap="gray")
-        #     plt.show()
-
-    def test(self, test_faces):
-        face_space_coord_test = project_onto_eigenface_subspace(self.eigenfaces, test_faces, self.mean_face)
-
-        recognized_labels = []
-        for face in face_space_coord_test:
-            distances = cdist(face.reshape(1, -1), self.face_space_coord_train)[0, :]
-            original_label = self.train_labels[np.argsort(distances)[0]]
-            recognized_labels.append(original_label)
-
-        return np.array(recognized_labels)
-
-
-def project_onto_eigenface_subspace(eigenfaces, faces, mean_face):
-    """ Project each training image onto the subspace spanned by principal components """
-    return np.dot(eigenfaces, np.array(faces - mean_face).T).T
 
 
 def load_images(idx):
@@ -89,9 +54,8 @@ def study_network():
     plt.show()
 
 
-def study_eigenfaces():
-    train_img, train_labels, test_img, test_labels = load_images(3)
-    k_ppal_components = 50
+def study_eigenfaces(n_training_img, k_ppal_components):
+    train_img, train_labels, test_img, test_labels = load_images(n_training_img)
     nearest_neighbor = NN()
     nearest_neighbor.train(train_img, train_labels, k_ppal_components)
 
@@ -103,14 +67,68 @@ def study_eigenfaces():
         if i > sqrt * int(sqrt):
             break
         plt.subplot(int(sqrt), rows, i)
-        plt.imshow((eigenface.reshape(32, 32).T + np.min(eigenface)) / np.max(eigenface), cmap="gray")
+        plt.imshow(shape_image(eigenface), cmap="gray")
         plt.xticks([])
         plt.yticks([])
 
     plt.subplots_adjust(wspace=0, hspace=0)
+    plt.suptitle(f'Eigenvectors. {n_training_img} training images, {k_ppal_components} eigenfaces')
+
     # plt.title("Eigenfaces used")
     plt.show()
 
 
-study_eigenfaces()
+def shape_image(eigenface):
+    return (eigenface.reshape(32, 32).T + np.min(eigenface)) / np.max(eigenface)
+
+
+def show_reconstructed(n_training_img, k_ppal_components, n_images):
+    """ Show side by side the original image and the reconstruction """
+    train_img, train_labels, test_img, test_labels = load_images(n_training_img)
+    nearest_neighbor = NN()
+    nearest_neighbor.train(train_img, train_labels, k_ppal_components)
+
+    reconstructed = nearest_neighbor.get_reconstructed_faces()
+
+    fig, axarr = plt.subplots(n_images, 2)
+    axarr[0, 0].set_title("Original")
+    axarr[0, 1].set_title("Reconstructed")
+    for i in range(n_images):
+        axarr[i, 0].imshow(shape_image(train_img[i]), cmap="gray")
+        axarr[i, 1].imshow(shape_image(reconstructed[i]), cmap="gray")
+
+    # Remove the labels in the plots
+    plt.setp([a.get_xticklabels() for a in axarr[:, 0]], visible=False)
+    plt.setp([a.get_xticklabels() for a in axarr[:, 1]], visible=False)
+    plt.setp([a.get_yticklabels() for a in axarr[:, 0]], visible=False)
+    plt.setp([a.get_yticklabels() for a in axarr[:, 1]], visible=False)
+
+    fig.suptitle(f'Reconstruction analysis\n{n_training_img} training images, {k_ppal_components} eigenfaces')
+    plt.show()
+
+
+def show_reconstruction(n_training_img=5):
+    train_img, train_labels, test_img, test_labels = load_images(n_training_img)
+    nearest_neighbor = NN()
+    nearest_neighbor.train(train_img, train_labels, 10)
+    eigenfaces = np.zeros(nearest_neighbor.eigenfaces.shape)
+    for i in range(nearest_neighbor.eigenfaces.shape[1]):
+        eigenfaces[:, i] = nearest_neighbor.face_space_coord_train[0] * nearest_neighbor.eigenfaces[:, i]
+
+    plt.imshow(shape_image(nearest_neighbor.mean_face), cmap="gray")
+    plt.title("Mean face")
+    plt.figure()
+    for i, eigenface in enumerate(eigenfaces):
+        plt.subplot(1, eigenfaces.shape[0], i + 1)
+        plt.imshow(shape_image(eigenface), cmap="gray")
+        plt.xticks([])
+        plt.yticks([])
+
+    plt.subplots_adjust(wspace=0, hspace=0)
+    plt.suptitle("Eigenfaces")
+    plt.show()
+
+# show_reconstruction()
+# show_reconstructed(3, 10, 5)
+# study_eigenfaces(3, 50)
 # study_network()
