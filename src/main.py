@@ -32,25 +32,34 @@ def calc_accuracy(test_labels, nn_labels):
     return 1 - sum(test_labels != nn_labels) / len(test_labels)
 
 
-def study_network():
+def study_accuracy():
     n_train_images = [3, 5, 7]
     k_ppal_components = [i * 10 + 10 for i in range(15)]
     nearest_neighbor = NN()
 
+    fig, axarr = plt.subplots(1, 2)
+
     for n_train in n_train_images:
         train_img, train_labels, test_img, test_labels = load_images(n_train)
         accuracies = []
+        reconstruction_errors = []
         for k_components in k_ppal_components:
             nearest_neighbor.train(train_img, train_labels, k_components)
             recognized_labels = nearest_neighbor.test(test_img)
+            reconstruction_error = nearest_neighbor.get_reconstruction_error(test_img)
+
             accuracies.append(calc_accuracy(test_labels, recognized_labels) * 100)
+            reconstruction_errors.append(reconstruction_error)
 
-        plt.plot(k_ppal_components, accuracies, label=str(n_train) + " training imgs")
+        axarr[0].plot(k_ppal_components, accuracies, label=str(n_train) + " training images")
+        axarr[1].plot(k_ppal_components, reconstruction_errors, label=str(n_train) + " training images")
 
-    plt.title("Accuracy comparison")
-    plt.xlabel("Number of eigenfaces")
-    plt.ylabel("Accuracy (%)")
-    plt.legend()
+    axarr[0].set_title("Accuracy comparison")
+    axarr[0].set(xlabel='Number of eigenfaces', ylabel='Accuracy (%)')
+    axarr[0].legend()
+    axarr[1].set_title("Reconstruction error comparison")
+    axarr[1].set(xlabel='Number of eigenfaces', ylabel='Reconstruction error')
+    axarr[1].legend()
     plt.show()
 
 
@@ -88,7 +97,7 @@ def show_reconstructed(n_training_img, k_ppal_components, n_images):
     nearest_neighbor = NN()
     nearest_neighbor.train(train_img, train_labels, k_ppal_components)
 
-    reconstructed = nearest_neighbor.get_reconstructed_faces()
+    reconstructed = nearest_neighbor.get_reconstructed_faces(train_img)
 
     fig, axarr = plt.subplots(n_images, 2)
     axarr[0, 0].set_title("Original")
@@ -129,6 +138,6 @@ def show_reconstruction(n_training_img=5):
     plt.show()
 
 # show_reconstruction()
-# show_reconstructed(3, 10, 5)
+# show_reconstructed(3, 40, 5)
 # study_eigenfaces(3, 50)
-# study_network()
+study_accuracy()

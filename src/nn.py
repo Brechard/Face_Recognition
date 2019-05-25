@@ -28,9 +28,13 @@ class NN:
 
         return np.array(recognized_labels)
 
-    def get_reconstructed_faces(self):
+    def get_reconstruction_error(self, test_faces):
+        reconstructed = self.get_reconstructed_faces(test_faces)
+        return np.sum(abs(reconstructed - test_faces))
+
+    def get_reconstructed_faces(self, faces):
         """ Return the faces used for training after reconstruction """
-        return self.mean_face + np.dot(self.face_space_coord_train, self.eigenfaces)
+        return self.mean_face + np.dot(self.project_onto_eigenface_subspace(faces), self.eigenfaces)
 
     def project_onto_eigenface_subspace(self, faces):
         """ Project each training image onto the subspace spanned by principal components """
