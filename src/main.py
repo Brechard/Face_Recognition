@@ -92,27 +92,42 @@ def shape_image(eigenface):
 
 
 def show_reconstructed(n_training_img, k_ppal_components, n_images):
-    """ Show side by side the original image and the reconstruction """
+    """
+    Show side by side the original image and the reconstruction using different number of principal components (eigenfaces)
+    :param n_training_img: Number of training images used per person
+    :param k_ppal_components: Array with the number of eigenfaces to use
+    :param n_images: Number of images of people to show
+    """
+
     train_img, train_labels, test_img, test_labels = load_images(n_training_img)
-    nearest_neighbor = NN()
-    nearest_neighbor.train(train_img, train_labels, k_ppal_components)
 
-    reconstructed = nearest_neighbor.get_reconstructed_faces(train_img)
+    # Randomize the selection of faces to show
+    face_ids = [i for i in range(len(train_labels))]
+    np.random.shuffle(face_ids)
 
-    fig, axarr = plt.subplots(n_images, 2)
+    # Reconstruct the images from the training data
+    reconstructed = []
+    for n_k in k_ppal_components:
+        nearest_neighbor = NN()
+        nearest_neighbor.train(train_img, train_labels, n_k)
+        reconstructed.append(nearest_neighbor.get_reconstructed_faces(train_img))
+
+    # Plot the results
+    fig, axarr = plt.subplots(n_images, 1 + len(k_ppal_components))
     axarr[0, 0].set_title("Original")
-    axarr[0, 1].set_title("Reconstructed")
+    for j, n_k in enumerate(k_ppal_components):
+        axarr[0, j + 1].set_title("K = " + str(n_k))
+
     for i in range(n_images):
-        axarr[i, 0].imshow(shape_image(train_img[i]), cmap="gray")
-        axarr[i, 1].imshow(shape_image(reconstructed[i]), cmap="gray")
+        face_id = face_ids[i]
+        axarr[i, 0].imshow(shape_image(train_img[face_id]), cmap="gray")
+        axarr[i, 0].axis('off')
+        for j, n_k in enumerate(k_ppal_components):
+            axarr[i, j + 1].imshow(shape_image(reconstructed[j][face_id]), cmap="gray")
+            axarr[i, j + 1].axis('off')
 
-    # Remove the labels in the plots
-    plt.setp([a.get_xticklabels() for a in axarr[:, 0]], visible=False)
-    plt.setp([a.get_xticklabels() for a in axarr[:, 1]], visible=False)
-    plt.setp([a.get_yticklabels() for a in axarr[:, 0]], visible=False)
-    plt.setp([a.get_yticklabels() for a in axarr[:, 1]], visible=False)
-
-    fig.suptitle(f'Reconstruction analysis\n{n_training_img} training images, {k_ppal_components} eigenfaces')
+    plt.subplots_adjust(wspace=0, hspace=0)
+    fig.suptitle(f'Reconstruction analysis. {n_training_img} training images')
     plt.show()
 
 
@@ -130,14 +145,14 @@ def show_reconstruction(n_training_img=5):
     for i, eigenface in enumerate(eigenfaces):
         plt.subplot(1, eigenfaces.shape[0], i + 1)
         plt.imshow(shape_image(eigenface), cmap="gray")
-        plt.xticks([])
-        plt.yticks([])
+        plt.axis('off')
 
     plt.subplots_adjust(wspace=0, hspace=0)
     plt.suptitle("Eigenfaces")
     plt.show()
 
+
 # show_reconstruction()
-# show_reconstructed(3, 40, 5)
+show_reconstructed(5, [i * 10 + 10 for i in range(10)], 10)
 # study_eigenfaces(3, 50)
-study_accuracy()
+# study_accuracy()
