@@ -13,6 +13,11 @@ faces_db = data['fea'] / 255
 
 
 def load_images(idx):
+    """
+    Load the images from the database and split in train and test images and labels
+    :param idx: 3, 5 or 7, number of training images per person
+    :return: train_images, train_labels, test_images, test_labels
+    """
     indexes = loadmat('../train_data/' + str(idx) + '.mat')
     data = loadmat('../ORL_32x32.mat')
     faces_db = data['fea'] / 255
@@ -28,13 +33,14 @@ def load_images(idx):
 
 
 def calc_accuracy(test_labels, nn_labels):
-    """ Calculate the accuracy of the network """
+    """ Calculate the accuracy of the model """
     return 1 - sum(test_labels != nn_labels) / len(test_labels)
 
 
 def study_accuracy():
+    """ Study the accuracy of the model and plot an accuracy and reconstruction error comparison """
     n_train_images = [3, 5, 7]
-    k_ppal_components = [i * 10 + 10 for i in range(15)]
+    k_ppal_components = [4, 6, 8] + [i * 10 + 10 for i in range(15)]
     nearest_neighbor = NN()
 
     fig, axarr = plt.subplots(1, 2)
@@ -63,7 +69,12 @@ def study_accuracy():
     plt.show()
 
 
-def study_eigenfaces(n_training_img, k_ppal_components):
+def study_ppal_components(n_training_img, k_ppal_components):
+    """
+    Show the principal components of the NN
+    :param n_training_img: Number of training images per person to use
+    :param k_ppal_components: Number of principal components to use in the NN
+    """
     train_img, train_labels, test_img, test_labels = load_images(n_training_img)
     nearest_neighbor = NN()
     nearest_neighbor.train(train_img, train_labels, k_ppal_components)
@@ -73,7 +84,7 @@ def study_eigenfaces(n_training_img, k_ppal_components):
     i = 0
     for eigenface in nearest_neighbor.eigenfaces:
         i += 1
-        if i > sqrt * int(sqrt):
+        if i > rows * int(sqrt):
             break
         plt.subplot(int(sqrt), rows, i)
         plt.imshow(shape_image(eigenface), cmap="gray")
@@ -81,13 +92,14 @@ def study_eigenfaces(n_training_img, k_ppal_components):
         plt.yticks([])
 
     plt.subplots_adjust(wspace=0, hspace=0)
-    plt.suptitle(f'Eigenvectors. {n_training_img} training images, {k_ppal_components} eigenfaces')
+    # plt.suptitle(f'Eigenvectors. {n_training_img} training images, {k_ppal_components} eigenfaces')
 
     # plt.title("Eigenfaces used")
     plt.show()
 
 
 def shape_image(eigenface):
+    """ Given an image, normalize and transpose so that it is correctly shown in the plots"""
     return (eigenface.reshape(32, 32).T + np.min(eigenface)) / np.max(eigenface)
 
 
@@ -132,16 +144,33 @@ def show_reconstructed(n_training_img, k_ppal_components, n_images):
 
 
 def show_reconstruction(n_training_img=5):
+    """
+    Show the images corresponding to the reconstruction process, namely:
+        - Original face
+        - Mean image
+        - Eigenfaces
+        - Reconstructed face
+    """
     train_img, train_labels, test_img, test_labels = load_images(n_training_img)
     nearest_neighbor = NN()
     nearest_neighbor.train(train_img, train_labels, 10)
+
+    face_idx = np.random.randint(0, len(train_labels))
+
+    plt.imshow(shape_image(train_img[face_idx]), cmap="gray")
+    plt.title("Original face")
+    plt.axis('off')
+    plt.figure()
+
     eigenfaces = np.zeros(nearest_neighbor.eigenfaces.shape)
     for i in range(nearest_neighbor.eigenfaces.shape[1]):
-        eigenfaces[:, i] = nearest_neighbor.face_space_coord_train[0] * nearest_neighbor.eigenfaces[:, i]
+        eigenfaces[:, i] = nearest_neighbor.face_space_coord_train[face_idx] * nearest_neighbor.eigenfaces[:, i]
 
     plt.imshow(shape_image(nearest_neighbor.mean_face), cmap="gray")
     plt.title("Mean face")
+    plt.axis('off')
     plt.figure()
+
     for i, eigenface in enumerate(eigenfaces):
         plt.subplot(1, eigenfaces.shape[0], i + 1)
         plt.imshow(shape_image(eigenface), cmap="gray")
@@ -149,10 +178,30 @@ def show_reconstruction(n_training_img=5):
 
     plt.subplots_adjust(wspace=0, hspace=0)
     plt.suptitle("Eigenfaces")
+    plt.figure()
+
+    plt.imshow(shape_image(nearest_neighbor.get_reconstructed_faces(train_img)[face_idx]), cmap='gray')
+    plt.title("Reconstructed image")
+    plt.axis('off')
     plt.show()
 
 
+def print_mean_faces():
+    """ Print the mean faces for 3, 5 and 7 per person training images """
+    for i, n_training in enumerate([3, 5, 7]):
+        train_img, train_labels, test_img, test_labels = load_images(n_training)
+        nearest_neighbor = NN()
+        nearest_neighbor.train(train_img, train_labels, 10)
+        plt.subplot(1, 3, i + 1)
+        plt.imshow(shape_image(nearest_neighbor.mean_face), cmap='gray')
+        plt.title(f"{n_training} training images")
+        plt.axis('off')
+
+    plt.show()
+
+
+# print_mean_faces()
 # show_reconstruction()
-show_reconstructed(5, [i * 10 + 10 for i in range(10)], 10)
-# study_eigenfaces(3, 50)
+# show_reconstructed(5, [i * 10 + 10 for i in range(10)], 10)
+# study_ppal_components(5, 25)
 # study_accuracy()
